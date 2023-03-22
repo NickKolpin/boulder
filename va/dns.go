@@ -6,7 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
-	"net" // 5925-maybe
+	"net/netip"
 
 	"github.com/letsencrypt/boulder/core"
 	berrors "github.com/letsencrypt/boulder/errors"
@@ -15,31 +15,41 @@ import (
 )
 
 // getAddr will query for all A/AAAA records associated with hostname and return
-// the preferred address, the first net.IP in the addrs slice, and all addresses
+// the preferred address, the first netip.Addr in the addrs slice, and all addresses
 // resolved. This is the same choice made by the Go internal resolution library
 // used by net/http. If there is an error resolving the hostname, or if no
 // usable IP addresses are available then a berrors.DNSError instance is
-// returned with a nil net.IP slice.
-func (va ValidationAuthorityImpl) getAddrs(ctx context.Context, hostname string) ([]net.IP, error) {
-	addrs, err := va.dnsClient.LookupHost(ctx, hostname)
+// returned with a nil netip.Addr slice.
+func (va ValidationAuthorityImpl) getAddrs(ctx context.Context, hostname string) ([]netip.Addr, error) {
+	ips, err := va.dnsClient.LookupHost(ctx, hostname)
 	if err != nil {
 		return nil, berrors.DNSError("%v", err)
 	}
 
-	if len(addrs) == 0 {
+	if len(ips) == 0 {
 		// This should be unreachable, as no valid IP addresses being found results
 		// in an error being returned from LookupHost.
 		return nil, berrors.DNSError("No valid IP addresses found for %s", hostname)
 	}
+
+	addrs := make([]netip.Addr, len(ips))
+	for i, ip := range ips {
+		addr, ok := netip.AddrFromSlice(ip)
+		if ip != nil && !ok {
+			return nil, berrors.DNSError("Invalid IP: %v", ip)
+		}
+		addrs[i] = addr.Unmap()
+	}
+
 	va.log.Debugf("Resolved addresses for %s: %s", hostname, addrs)
 	return addrs, nil
 }
 
 // availableAddresses takes a ValidationRecord and splits the AddressesResolved
 // into a list of IPv4 and IPv6 addresses.
-func availableAddresses(allAddrs []net.IP) (v4 []net.IP, v6 []net.IP) {
+func availableAddresses(allAddrs []netip.Addr) (v4 []netip.Addr, v6 []netip.Addr) {
 	for _, addr := range allAddrs {
-		if addr.To4() != nil {
+		if addr.Is4() {
 			v4 = append(v4, addr)
 		} else {
 			v6 = append(v6, addr)

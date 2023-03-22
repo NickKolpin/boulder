@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net" // 5925-maybe
+	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -42,7 +42,7 @@ const (
 // The hostname of the preresolvedDialer is used to ensure the dial only completes
 // using the pre-resolved IP/port when used for the correct host.
 type preresolvedDialer struct {
-	ip       net.IP
+	ip       netip.Addr
 	port     int
 	hostname string
 	timeout  time.Duration
@@ -170,14 +170,14 @@ type httpValidationTarget struct {
 	// following redirects)
 	query string
 	// all of the IP addresses available for the host
-	available []net.IP
+	available []netip.Addr
 	// the IP addresses that were tried for validation previously that were cycled
 	// out of cur by calls to nextIP()
-	tried []net.IP
+	tried []netip.Addr
 	// the IP addresses that will be drawn from by calls to nextIP() to set curIP
-	next []net.IP
+	next []netip.Addr
 	// the current IP address being used for validation (if any)
-	cur net.IP
+	cur netip.Addr
 }
 
 // nextIP changes the cur IP by removing the first entry from the next slice and
@@ -196,9 +196,9 @@ func (vt *httpValidationTarget) nextIP() error {
 	return nil
 }
 
-// ip returns the current *net.IP for the validation target. It may return nil
+// ip returns the current *netip.Addr for the validation target. It may return nil
 // if all possible IPs have been expended by calls to nextIP.
-func (vt *httpValidationTarget) ip() net.IP {
+func (vt *httpValidationTarget) ip() netip.Addr {
 	return vt.cur
 }
 
@@ -238,15 +238,15 @@ func (va *ValidationAuthorityImpl) newHTTPValidationTarget(
 	} else if !hasV6Addrs && hasV4Addrs {
 		// If there are no v6 addrs and there are v4 addrs then use the first v4
 		// address. There's no fallback address.
-		target.next = []net.IP{v4Addrs[0]}
+		target.next = []netip.Addr{v4Addrs[0]}
 	} else if hasV6Addrs && hasV4Addrs {
 		// If there are both v6 addrs and v4 addrs then use the first v6 address and
 		// fallback with the first v4 address.
-		target.next = []net.IP{v6Addrs[0], v4Addrs[0]}
+		target.next = []netip.Addr{v6Addrs[0], v4Addrs[0]}
 	} else if hasV6Addrs && !hasV4Addrs {
 		// If there are just v6 addrs then use the first v6 address. There's no
 		// fallback address.
-		target.next = []net.IP{v6Addrs[0]}
+		target.next = []netip.Addr{v6Addrs[0]}
 	}
 
 	// Advance the target using nextIP to populate the cur IP before returning
@@ -309,7 +309,7 @@ func (va *ValidationAuthorityImpl) extractRequestTarget(req *http.Request) (stri
 
 	// Check that the request host isn't a bare IP address. We only follow
 	// redirects to hostnames.
-	if net.ParseIP(reqHost) != nil {
+	if _, err := netip.ParseAddr(reqHost); err == nil {
 		return "", 0, berrors.ConnectionFailureError("Invalid host in redirect target %q. Only domain names are supported, not IP addresses", reqHost)
 	}
 
@@ -356,42 +356,25 @@ func (va *ValidationAuthorityImpl) setupHTTPValidation(
 			fmt.Errorf("httpValidationTarget can not be nil")
 	}
 
-	availableAddrs := make([]netip.Addr, len(target.available))
-	for i, ip := range target.available {
-		addr, ok := netip.AddrFromSlice(ip)
-		if ip != nil && !ok {
-			return nil,
-				core.ValidationRecord{},
-				fmt.Errorf("Invalid IP address: %v", target.available)
-		}
-		availableAddrs[i] = addr.Unmap()
-	}
-
 	// Construct a base validation record with the validation target's
 	// information.
 	record := core.ValidationRecord{
 		Hostname:          target.host,
 		Port:              strconv.Itoa(target.port),
-		AddressesResolved: availableAddrs,
+		AddressesResolved: target.available,
 		URL:               reqURL,
 	}
 
 	// Get the target IP to build a preresolved dialer with
 	targetIP := target.ip()
-	if targetIP == nil {
+	if !targetIP.IsValid() {
 		return nil,
 			record,
 			fmt.Errorf(
 				"host %q has no IP addresses remaining to use",
 				target.host)
 	}
-	targetAddr, ok := netip.AddrFromSlice(targetIP)
-	if targetIP != nil && !ok {
-		return nil,
-			record,
-			fmt.Errorf("Invalid IP address: %v", targetIP)
-	}
-	record.AddressUsed = targetAddr.Unmap()
+	record.AddressUsed = targetIP
 
 	dialer := &preresolvedDialer{
 		ip:       targetIP,

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net" // 5925-maybe
+	"net"
 	"strings"
 	"testing"
 
@@ -28,6 +28,7 @@ func (mock caaMockDNS) LookupTXT(_ context.Context, hostname string) ([]string, 
 	return nil, nil
 }
 
+// 5925-later: This will need the dns.DNSClient updated first
 func (mock caaMockDNS) LookupHost(_ context.Context, hostname string) ([]net.IP, error) {
 	ip := net.ParseIP("127.0.0.1")
 	return []net.IP{ip}, nil

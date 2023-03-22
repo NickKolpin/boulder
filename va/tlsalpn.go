@@ -12,7 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net" // 5925-maybe
+	"net"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -61,18 +61,9 @@ func (va *ValidationAuthorityImpl) tryGetChallengeCert(ctx context.Context,
 	identifier identifier.ACMEIdentifier, challenge core.Challenge,
 	tlsConfig *tls.Config) (*x509.Certificate, *tls.ConnectionState, []core.ValidationRecord, *probs.ProblemDetails) {
 
-	allIPs, err := va.getAddrs(ctx, identifier.Value)
+	allAddrs, err := va.getAddrs(ctx, identifier.Value)
 	if err != nil {
 		return nil, nil, []core.ValidationRecord{}, detailedError(err)
-	}
-	allAddrs := make([]netip.Addr, len(allIPs))
-	for i, ip := range allIPs {
-		addr, ok := netip.AddrFromSlice(ip)
-		if ip != nil && !ok {
-			err = fmt.Errorf("Invalid IP: %v", ip)
-			return nil, nil, []core.ValidationRecord{}, detailedError(err)
-		}
-		allAddrs[i] = addr.Unmap()
 	}
 
 	validationRecords := []core.ValidationRecord{
@@ -88,7 +79,7 @@ func (va *ValidationAuthorityImpl) tryGetChallengeCert(ctx context.Context,
 	thisRecord := &validationRecords[0]
 
 	// Split the available addresses into v4 and v6 addresses
-	v4, v6 := availableAddresses(allIPs)
+	v4, v6 := availableAddresses(allAddrs)
 	addresses := append(v4, v6...)
 
 	// This shouldn't happen, but be defensive about it anyway
@@ -99,12 +90,7 @@ func (va *ValidationAuthorityImpl) tryGetChallengeCert(ctx context.Context,
 	// If there is at least one IPv6 address then try it first
 	if len(v6) > 0 {
 		address := net.JoinHostPort(v6[0].String(), thisRecord.Port)
-		addrUsed, ok := netip.AddrFromSlice(v6[0])
-		if v6[0] != nil && !ok {
-			err = fmt.Errorf("Invalid IP: %v", v6[0])
-			return nil, nil, validationRecords, detailedError(err)
-		}
-		thisRecord.AddressUsed = addrUsed.Unmap()
+		thisRecord.AddressUsed = v6[0]
 
 		cert, cs, prob := va.getChallengeCert(ctx, address, identifier, challenge, tlsConfig)
 
@@ -131,12 +117,7 @@ func (va *ValidationAuthorityImpl) tryGetChallengeCert(ctx context.Context,
 
 	// Otherwise if there are no IPv6 addresses, or there was an error
 	// talking to the first IPv6 address, try the first IPv4 address
-	addrUsed, ok := netip.AddrFromSlice(v4[0])
-	if v4[0] != nil && !ok {
-		err = fmt.Errorf("Invalid IP: %v", v4[0])
-		return nil, nil, validationRecords, detailedError(err)
-	}
-	thisRecord.AddressUsed = addrUsed.Unmap()
+	thisRecord.AddressUsed = v4[0]
 	cert, cs, prob := va.getChallengeCert(ctx, net.JoinHostPort(v4[0].String(), thisRecord.Port),
 		identifier, challenge, tlsConfig)
 	return cert, cs, validationRecords, prob
@@ -157,11 +138,12 @@ func (va *ValidationAuthorityImpl) getChallengeCert(
 	if err != nil {
 		va.log.Infof("%s connection failure for %s. err=[%#v] errStr=[%s]", challenge.Type, identifier, err, err)
 		host, _, splitErr := net.SplitHostPort(hostPort)
-		if splitErr == nil && net.ParseIP(host) != nil {
+		hostIP, _ := netip.ParseAddr(host)
+		if splitErr == nil && hostIP.IsValid() {
 			// Wrap the validation error and the IP of the remote host in an
 			// IPError so we can display the IP in the problem details returned
 			// to the client.
-			return nil, nil, detailedError(ipError{net.ParseIP(host), err})
+			return nil, nil, detailedError(ipError{hostIP, err})
 		}
 		return nil, nil, detailedError(err)
 

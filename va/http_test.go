@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	mrand "math/rand"
-	"net" // 5925-maybe
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -37,7 +37,7 @@ func httpChallenge() core.Challenge {
 // a dial to another host produces the expected dialerMismatchError.
 func TestDialerMismatchError(t *testing.T) {
 	d := preresolvedDialer{
-		ip:       net.ParseIP("127.0.0.1"),
+		ip:       netip.MustParseAddr("127.0.0.1"),
 		port:     1337,
 		hostname: "letsencrypt.org",
 	}
@@ -182,8 +182,8 @@ func TestHTTPValidationTarget(t *testing.T) {
 				// order.
 				for i, expectedIP := range tc.ExpectedIPs {
 					gotIP := target.ip()
-					if gotIP == nil {
-						t.Errorf("Expected IP %d to be %s got nil", i, expectedIP)
+					if !gotIP.IsValid() {
+						t.Errorf("Expected IP %d to be %s got invalid IP", i, expectedIP)
 					} else {
 						test.AssertEquals(t, gotIP.String(), expectedIP)
 					}
@@ -437,7 +437,7 @@ func TestSetupHTTPValidation(t *testing.T) {
 				AddressUsed:       netip.MustParseAddr("::1"),
 			},
 			ExpectedDialer: &preresolvedDialer{
-				ip:      net.ParseIP("::1"),
+				ip:      netip.MustParseAddr("::1"),
 				port:    va.httpPort,
 				timeout: va.singleDialTimeout,
 			},
@@ -454,7 +454,7 @@ func TestSetupHTTPValidation(t *testing.T) {
 				AddressUsed:       netip.MustParseAddr("::1"),
 			},
 			ExpectedDialer: &preresolvedDialer{
-				ip:      net.ParseIP("::1"),
+				ip:      netip.MustParseAddr("::1"),
 				port:    va.httpsPort,
 				timeout: va.singleDialTimeout,
 			},
@@ -1330,6 +1330,7 @@ type dnsMockReturnsUnroutable struct {
 	*bdns.MockClient
 }
 
+// 5925-later: This will need dns.DNSClient updated first
 func (mock dnsMockReturnsUnroutable) LookupHost(_ context.Context, hostname string) ([]net.IP, error) {
 	return []net.IP{net.ParseIP("198.51.100.1")}, nil
 }

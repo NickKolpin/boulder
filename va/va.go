@@ -8,7 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"net" // 5925-maybe
+	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"regexp"
@@ -271,7 +272,7 @@ type verificationRequestEvent struct {
 // ipError is an error type used to pass though the IP address of the remote
 // host when an error occurs during HTTP-01 and TLS-ALPN domain validation.
 type ipError struct {
-	ip  net.IP
+	ip  netip.Addr
 	err error
 }
 
@@ -294,7 +295,7 @@ func detailedError(err error) *probs.ProblemDetails {
 	var ipErr ipError
 	if errors.As(err, &ipErr) {
 		detailedErr := detailedError(ipErr.err)
-		if ipErr.ip == nil {
+		if !ipErr.ip.IsValid() {
 			// This should never happen.
 			return detailedErr
 		}

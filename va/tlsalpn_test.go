@@ -11,7 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"net" // 5925-maybe
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -335,6 +335,7 @@ func TestCertNames(t *testing.T) {
 	test.AssertNotError(t, err, "failed to parse fake URI")
 
 	// We duplicate names inside the fields corresponding to the SAN set
+	// 5925-check: Can we use netip.Addr for x509.Certificate?
 	template := &x509.Certificate{
 		SerialNumber:          big.NewInt(1337),
 		NotBefore:             time.Now(),
