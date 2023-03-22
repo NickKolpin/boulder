@@ -3,7 +3,7 @@ package bdns
 import (
 	"context"
 	"errors"
-	"net"
+	"net" // 5925-maybe
 	"testing"
 
 	"github.com/miekg/dns"

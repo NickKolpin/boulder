@@ -2,7 +2,7 @@ package grpc
 
 import (
 	"fmt"
-	"net"
+	"net" // 5925-maybe
 	"strings"
 
 	"google.golang.org/grpc/resolver"

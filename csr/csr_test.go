@@ -8,7 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
-	"net"
+	"net" // 5925-maybe
 	"strings"
 	"testing"
 

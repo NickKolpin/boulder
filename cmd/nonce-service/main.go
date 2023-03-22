@@ -3,7 +3,7 @@ package notmain
 import (
 	"flag"
 	"fmt"
-	"net"
+	"net" // 5925-maybe
 	"os"
 
 	"github.com/letsencrypt/boulder/cmd"

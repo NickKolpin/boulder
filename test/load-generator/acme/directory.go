@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
+	"net" // 5925-maybe
 	"net/http"
 	"net/url"
 	"time"

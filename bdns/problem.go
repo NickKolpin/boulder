@@ -3,7 +3,7 @@ package bdns
 import (
 	"context"
 	"fmt"
-	"net"
+	"net" // 5925-maybe
 
 	"github.com/miekg/dns"
 )

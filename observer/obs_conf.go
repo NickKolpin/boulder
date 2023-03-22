@@ -3,7 +3,7 @@ package observer
 import (
 	"errors"
 	"fmt"
-	"net"
+	"net" // 5925-maybe
 	"strconv"
 
 	"github.com/letsencrypt/boulder/cmd"

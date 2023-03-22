@@ -6,7 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
-	"net"
+	"net" // 5925-maybe
 
 	"github.com/letsencrypt/boulder/core"
 	berrors "github.com/letsencrypt/boulder/errors"

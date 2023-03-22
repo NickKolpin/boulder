@@ -11,7 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"net"
+	"net" // 5925-maybe
 	"net/http"
 	"net/http/httptest"
 	"net/url"

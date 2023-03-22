@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log/syslog"
-	"net"
+	"net" // 5925-maybe
 	"os"
 	"strings"
 	"sync"

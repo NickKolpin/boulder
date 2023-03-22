@@ -2,7 +2,7 @@ package satest
 
 import (
 	"context"
-	"net"
+	"net" // 5925-maybe
 	"testing"
 	"time"
 

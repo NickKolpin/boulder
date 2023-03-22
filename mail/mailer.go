@@ -11,7 +11,7 @@ import (
 	"math"
 	"math/big"
 	"mime/quotedprintable"
-	"net"
+	"net" // 5925-maybe
 	"net/mail"
 	"net/smtp"
 	"net/textproto"
