@@ -8,6 +8,7 @@ import (
 	"io"
 	"net" // 5925-maybe
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -355,12 +356,23 @@ func (va *ValidationAuthorityImpl) setupHTTPValidation(
 			fmt.Errorf("httpValidationTarget can not be nil")
 	}
 
+	availableAddrs := make([]netip.Addr, len(target.available))
+	for i, ip := range target.available {
+		addr, ok := netip.AddrFromSlice(ip)
+		if ip != nil && !ok {
+			return nil,
+				core.ValidationRecord{},
+				fmt.Errorf("Invalid IP address: %v", target.available)
+		}
+		availableAddrs[i] = addr.Unmap()
+	}
+
 	// Construct a base validation record with the validation target's
 	// information.
 	record := core.ValidationRecord{
 		Hostname:          target.host,
 		Port:              strconv.Itoa(target.port),
-		AddressesResolved: target.available,
+		AddressesResolved: availableAddrs,
 		URL:               reqURL,
 	}
 
@@ -373,7 +385,13 @@ func (va *ValidationAuthorityImpl) setupHTTPValidation(
 				"host %q has no IP addresses remaining to use",
 				target.host)
 	}
-	record.AddressUsed = targetIP
+	targetAddr, ok := netip.AddrFromSlice(targetIP)
+	if targetIP != nil && !ok {
+		return nil,
+			record,
+			fmt.Errorf("Invalid IP address: %v", targetIP)
+	}
+	record.AddressUsed = targetAddr.Unmap()
 
 	dialer := &preresolvedDialer{
 		ip:       targetIP,

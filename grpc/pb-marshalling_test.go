@@ -2,7 +2,7 @@ package grpc
 
 import (
 	"encoding/json"
-	"net"	// 5925-maybe
+	"net/netip"
 	"testing"
 	"time"
 
@@ -69,15 +69,16 @@ func TestChallenge(t *testing.T) {
 	test.AssertNotError(t, err, "PBToChallenge failed")
 	test.AssertDeepEquals(t, recon, chall)
 
-	ip := net.ParseIP("1.1.1.1")
+	// ip := net.ParseIP("1.1.1.1")
+	ip := netip.AddrFrom4([4]byte{1, 1, 1, 1})
 	chall.ValidationRecord = []core.ValidationRecord{
 		{
 			Hostname:          "host",
 			Port:              "2020",
-			AddressesResolved: []net.IP{ip},
+			AddressesResolved: []netip.Addr{ip},
 			AddressUsed:       ip,
 			URL:               "url",
-			AddressesTried:    []net.IP{ip},
+			AddressesTried:    []netip.Addr{ip},
 		},
 	}
 	chall.Error = &probs.ProblemDetails{Type: probs.TLSProblem, Detail: "asd", HTTPStatus: 200}
@@ -98,14 +99,14 @@ func TestChallenge(t *testing.T) {
 }
 
 func TestValidationRecord(t *testing.T) {
-	ip := net.ParseIP("1.1.1.1")
+	ip := netip.AddrFrom4([4]byte{1, 1, 1, 1})
 	vr := core.ValidationRecord{
 		Hostname:          "host",
 		Port:              "2020",
-		AddressesResolved: []net.IP{ip},
+		AddressesResolved: []netip.Addr{ip},
 		AddressUsed:       ip,
 		URL:               "url",
-		AddressesTried:    []net.IP{ip},
+		AddressesTried:    []netip.Addr{ip},
 	}
 
 	pb, err := ValidationRecordToPB(vr)
@@ -118,22 +119,22 @@ func TestValidationRecord(t *testing.T) {
 }
 
 func TestValidationResult(t *testing.T) {
-	ip := net.ParseIP("1.1.1.1")
+	ip := netip.AddrFrom4([4]byte{1, 1, 1, 1})
 	vrA := core.ValidationRecord{
 		Hostname:          "hostA",
 		Port:              "2020",
-		AddressesResolved: []net.IP{ip},
+		AddressesResolved: []netip.Addr{ip},
 		AddressUsed:       ip,
 		URL:               "urlA",
-		AddressesTried:    []net.IP{ip},
+		AddressesTried:    []netip.Addr{ip},
 	}
 	vrB := core.ValidationRecord{
 		Hostname:          "hostB",
 		Port:              "2020",
-		AddressesResolved: []net.IP{ip},
+		AddressesResolved: []netip.Addr{ip},
 		AddressUsed:       ip,
 		URL:               "urlB",
-		AddressesTried:    []net.IP{ip},
+		AddressesTried:    []netip.Addr{ip},
 	}
 	result := []core.ValidationRecord{vrA, vrB}
 	prob := &probs.ProblemDetails{Type: probs.TLSProblem, Detail: "asd", HTTPStatus: 200}
@@ -165,7 +166,7 @@ func TestRegistration(t *testing.T) {
 		Key:       &key,
 		Contact:   &contacts,
 		Agreement: "yup",
-		InitialIP: net.ParseIP("1.1.1.1"),
+		InitialIP: netip.AddrFrom4([4]byte{1, 1, 1, 1}),
 		CreatedAt: &createdAt,
 		Status:    core.StatusValid,
 	}

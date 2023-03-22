@@ -4,7 +4,8 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"math/big"
-	"net"	// 5925-maybe
+	// "net"	// 5925-maybe
+	"net/netip"
 	"testing"
 
 	"gopkg.in/go-jose/go-jose.v2"
@@ -33,13 +34,14 @@ func TestExpectedKeyAuthorization(t *testing.T) {
 }
 
 func TestRecordSanityCheckOnUnsupportChallengeType(t *testing.T) {
+	localhost := netip.AddrFrom4([4]byte{127, 0, 0, 1})
 	rec := []ValidationRecord{
 		{
 			URL:               "http://localhost/test",
 			Hostname:          "localhost",
 			Port:              "80",
-			AddressesResolved: []net.IP{{127, 0, 0, 1}},
-			AddressUsed:       net.IP{127, 0, 0, 1},
+			AddressesResolved: []netip.Addr{localhost},
+			AddressUsed:       localhost,
 		},
 	}
 

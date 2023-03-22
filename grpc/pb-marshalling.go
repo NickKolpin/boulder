@@ -6,7 +6,9 @@
 package grpc
 
 import (
+	"fmt"
 	"net" // 5925-maybe
+	"net/netip"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -128,10 +130,10 @@ func ValidationRecordToPB(record core.ValidationRecord) (*corepb.ValidationRecor
 	addrsTried := make([][]byte, len(record.AddressesTried))
 	var err error
 	for i, v := range record.AddressesResolved {
-		addrs[i] = []byte(v)
+		addrs[i] = v.AsSlice()
 	}
 	for i, v := range record.AddressesTried {
-		addrsTried[i] = []byte(v)
+		addrsTried[i] = v.AsSlice()
 	}
 	addrUsed, err := record.AddressUsed.MarshalText()
 	if err != nil {
@@ -151,24 +153,44 @@ func PBToValidationRecord(in *corepb.ValidationRecord) (record core.ValidationRe
 	if in == nil {
 		return core.ValidationRecord{}, ErrMissingParameters
 	}
-	addrs := make([]net.IP, len(in.AddressesResolved))
+	addrs := make([]netip.Addr, len(in.AddressesResolved))
 	for i, v := range in.AddressesResolved {
-		addrs[i] = net.IP(v)
+		addr, ok := netip.AddrFromSlice(v)
+		if v != nil && !ok {
+			err = fmt.Errorf("Invalid IP address %v", v)
+			fmt.Printf("%v\n", err)
+			return
+		}
+		addrs[i] = addr.Unmap()
 	}
-	addrsTried := make([]net.IP, len(in.AddressesTried))
+	addrsTried := make([]netip.Addr, len(in.AddressesTried))
 	for i, v := range in.AddressesTried {
-		addrsTried[i] = net.IP(v)
+		addr, ok := netip.AddrFromSlice(v)
+		if v != nil && !ok {
+			err = fmt.Errorf("Invalid IP address %v", v)
+			fmt.Printf("%v\n", err)
+			return
+		}
+		addrsTried[i] = addr.Unmap()
 	}
 	var addrUsed net.IP
 	err = addrUsed.UnmarshalText(in.AddressUsed)
 	if err != nil {
 		return
 	}
+	ipaddrUsed, ok := netip.AddrFromSlice(addrUsed)
+	if addrUsed != nil && !ok {
+		err = fmt.Errorf("Invalid IP address %v", addrUsed)
+		fmt.Printf("%v\n", err)
+		return
+	}
+	ipaddrUsed = ipaddrUsed.Unmap()
+
 	return core.ValidationRecord{
 		Hostname:          in.Hostname,
 		Port:              in.Port,
 		AddressesResolved: addrs,
-		AddressUsed:       addrUsed,
+		AddressUsed:       ipaddrUsed,
 		URL:               in.Url,
 		AddressesTried:    addrsTried,
 	}, nil
@@ -256,6 +278,12 @@ func PbToRegistration(pb *corepb.Registration) (core.Registration, error) {
 	if err != nil {
 		return core.Registration{}, err
 	}
+	initialIPaddr, ok := netip.AddrFromSlice(initialIP)
+	if initialIP != nil && !ok {
+		return core.Registration{}, fmt.Errorf("Invalid IP: %v", initialIP)
+	}
+	initialIPaddr = initialIPaddr.Unmap()
+
 	var createdAt *time.Time
 	if pb.CreatedAt != 0 {
 		c := time.Unix(0, pb.CreatedAt).UTC()
@@ -280,7 +308,7 @@ func PbToRegistration(pb *corepb.Registration) (core.Registration, error) {
 		Key:       &key,
 		Contact:   contacts,
 		Agreement: pb.Agreement,
-		InitialIP: initialIP,
+		InitialIP: initialIPaddr,
 		CreatedAt: createdAt,
 		Status:    core.AcmeStatus(pb.Status),
 	}, nil
